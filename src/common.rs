@@ -88,6 +88,22 @@ pub const SPECIAL_TASKS: &[SpecialTask] = &[
     SpecialTask { id: 1758, audio_token: "5m", jacket_slot: 5, title_suffix: " - Noel Shirogane, Flare Shiranui Edit - " },
 ];
 
+/*
+The arcade font privately renders certain obscure CP932 kanji as symbols (accented latin, currency, hearts, ...), so a
+correct CP932 decode shows the kanji and we remap each back to the intended glyph here. Applied as a plain string
+replace over the decoded xml -- these kanji never occur as genuine content. Hardcoded to keep the release a single exe.
+*/
+pub const FIXUP_RULES: &[(&str, &str)] = &[
+    // accented latin letters
+    ("驫", "ā"), ("騫", "á"), ("曦", "à"), ("頽", "ä"), ("罇", "ê"), ("曩", "è"), ("齷", "é"),
+    ("彜", "ū"), ("鬥", "Ã"), ("雋", "Ǜ"), ("隍", "Ü"), ("趁", "Ǣ"), ("鬆", "Ý"), ("驩", "Ø"),
+    ("疉", "Ö"), ("鑒", "₩"),
+    // symbols
+    ("龕", "€"), ("蹇", "₂"), ("鬻", "♃"), ("黻", "*"), ("鑷", "ゔ"),
+    // graphics / pictographs
+    ("齶", "♡"), ("齲", "❤"), ("躔", "★"), ("釁", "🍄"), ("齪", "♣"), ("鑈", "♦"), ("霻", "♠"), ("盥", "⚙"),
+];
+
 // safe accessor: out-of-range versions fall back to an empty string instead of panicking
 pub fn version_folder_name(version: u8) -> &'static str {
     VERSION_FOLDER_NAMES.get(version as usize).copied().unwrap_or("")

@@ -3,6 +3,7 @@
 use music_db::load_index;
 use packer::{ensure_ffmpeg, package};
 use scan::{build_special_tasks, filter_existing, scan_music_dir};
+use tool::dump_music_csv;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -14,6 +15,7 @@ mod common;
 mod music_db;
 mod packer;
 mod scan;
+mod tool;
 
 // command-line arguments
 #[derive(Parser)]
@@ -34,14 +36,30 @@ struct Cli {
     /// number of parallel workers [default: logical CPU count]
     #[arg(short, long)]
     jobs: Option<usize>,
+
+    /// dump the parsed database to ./music_db.csv and exit (for auditing decode/fixup issues)
+    #[arg(long)]
+    csv: bool,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let jobs = cli.jobs.unwrap_or_else(|| thread::available_parallelism().map_or(1, |n| n.get())).max(1);
 
-    // derive the two inputs from the contents dir, and resolve the output dir (cwd if -d omitted)
+    // load the database from <src>/data/others/music_db.xml
     let path_xml = cli.src.join("data").join("others").join("music_db.xml");
+    let vec_music = load_index(&path_xml)?;
+    println!("db: {} valid songs", vec_music.iter().filter(|m| m.is_valid).count());
+
+    // --csv: dump the parsed db to ./music_db.csv for manual decode auditing, then exit (no conversion)
+    if cli.csv {
+        let path_csv = std::env::current_dir().context("resolving current directory")?.join("music_db.csv");
+        dump_music_csv(&vec_music, &path_csv)?;
+        println!("wrote {}", path_csv.display());
+        return Ok(());
+    }
+
+    // resolve the conversion inputs/output (cwd output if -d omitted), then verify ffmpeg is runnable
     let path_music = cli.src.join("data").join("music");
     let path_out = match cli.dst {
         Some(path) => path,
@@ -51,9 +69,6 @@ fn main() -> Result<()> {
         bail!("music folder not found: {} (is --src pointing at the SDVX 'contents' directory?)", path_music.display());
     }
     ensure_ffmpeg()?;
-
-    let vec_music = load_index(&path_xml)?;
-    println!("db: {} valid songs", vec_music.iter().filter(|m| m.is_valid).count());
 
     // plan tasks (standard scan + multi-audio specials), then unless --force drop those already converted
     let mut vec_task = scan_music_dir(&path_music, &path_out, &vec_music);

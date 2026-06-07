@@ -4,7 +4,7 @@
 //! vector index equals the song id; id gaps (deleted licensed songs) are filled with default (is_valid == false)
 //! entries. Numeric fields are converted to display form here (bpm zeros trimmed, date as YYYY-MM-DD).
 
-use crate::common::MusicInfo;
+use crate::common::{MusicInfo, FIXUP_RULES};
 
 use std::fs;
 use std::path::Path;
@@ -12,11 +12,6 @@ use anyhow::{Context, Result};
 
 use encoding_rs::SHIFT_JIS;
 use roxmltree::{Document, Node};
-
-// hand-maintained character corrections applied after SHIFT-JIS decoding: vendor glyphs (emoji-like symbols) that
-// CP932 decodes to the wrong codepoint go here as ("wrong", "right") pairs. Hardcoded rather than read from a side
-// file so the release stays a single exe. Empty for now (current data decodes cleanly); add entries as needed.
-const FIXUP_RULES: &[(&str, &str)] = &[];
 
 // public entry: load and index the whole music database, returning a vector indexed by song id
 pub fn load_index(path_xml: &Path) -> Result<Vec<MusicInfo>> {
