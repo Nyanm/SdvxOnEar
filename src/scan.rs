@@ -39,17 +39,29 @@ pub fn scan_music_dir(path_music: &Path, path_music_omni: Option<&Path>, path_ou
     vec_task
 }
 
-// plan the task for one standard song: base audio + highest available jacket. None when the base audio is absent.
+// plan the task for one standard song: base audio + highest available jacket. None (with a reason logged) when the
+// base audio or a jacket is missing.
 fn resolve_song(info: &MusicInfo, path_dir: &Path, str_prefix: &str, path_out: &Path) -> Option<PackTask> {
     let str_id4 = str_prefix.split('_').next().unwrap_or("");          // "0927", the jacket file prefix
 
     let path_base = path_dir.join(format!("{str_prefix}.s3v"));
     if !path_base.exists() {
-        return None;                                                   // jacket-only db row (delisted/event), nothing to do
+        // a sibling `.2dx` means the audio exists but in the omnimix archive format we don't decode; otherwise it is
+        // genuinely absent (e.g. a jacket-only delisted/event row)
+        let str_reason = if path_dir.join(format!("{str_prefix}.2dx")).exists() {
+            "audio not found, unsupported format (.2dx)"
+        } else {
+            "audio file not found"
+        };
+        eprintln!("[skip] #{} {}: {str_reason}", info.id, info.str_title);
+        return None;
     }
 
     // jacket of the highest difficulty available: MAXIMUM -> 4th -> EXHAUST -> ADVANCED -> base
-    let path_jacket = find_jacket(path_dir, str_id4, [5, 4, 3, 2, 1])?;
+    let Some(path_jacket) = find_jacket(path_dir, str_id4, [5, 4, 3, 2, 1]) else {
+        eprintln!("[skip] #{} {}: no jacket found", info.id, info.str_title);
+        return None;
+    };
 
     Some(PackTask {
         info: info.clone(),
