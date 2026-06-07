@@ -19,16 +19,18 @@ pub fn filter_existing(vec_task: &mut Vec<PackTask>) {
 
 // --- general scan: one task per standard song ---------------------------------------------------------------------
 
-// walk the valid songs, locate each folder by id + ascii, and plan a packaging task per standard song
-pub fn scan_music_dir(path_music: &Path, path_out: &Path, vec_index: &[MusicInfo]) -> Vec<PackTask> {
+// walk the valid songs, locate each folder by id + ascii, and plan a packaging task per standard song. omnimix-revived
+// songs live under `path_music_omni` (the omnimix patch's music dir); everything else under the base `path_music`.
+pub fn scan_music_dir(path_music: &Path, path_music_omni: Option<&Path>, path_out: &Path, vec_index: &[MusicInfo]) -> Vec<PackTask> {
     let mut vec_task = Vec::new();
 
     for info in vec_index.iter().filter(|m| m.is_valid) {
         if SPECIAL_IDS.contains(&info.id) {
             continue;                                                   // produced by build_special_tasks instead
         }
+        let path_root = if info.is_omnimix { path_music_omni.unwrap_or(path_music) } else { path_music };
         let str_prefix = format!("{:04}_{}", info.id, info.str_ascii);  // folder/file name "<id4>_<ascii>"
-        let path_dir = path_music.join(&str_prefix);
+        let path_dir = path_root.join(&str_prefix);
         if let Some(task) = resolve_song(info, &path_dir, &str_prefix, path_out) {
             vec_task.push(task);
         }

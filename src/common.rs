@@ -6,6 +6,7 @@ use std::path::PathBuf;
 #[derive(Default, Clone, Debug)]
 pub struct MusicInfo {
     pub is_valid: bool,                 // false for id gaps and placeholder entries, skipped on traversal
+    pub is_omnimix: bool,               // revived by an omnimix patch -> audio lives under the omnimix music dir
     pub id: u32,                        // music id, also the vector index and the 4-digit folder/file prefix
     pub str_ascii: String,             // ascii name, the on-disk prefix linking the db entry to its folder
     pub str_title: String,             // -> TITLE

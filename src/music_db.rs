@@ -79,6 +79,7 @@ fn parse_music(index: u32, node_music: Node) -> MusicInfo {
 
     MusicInfo {
         is_valid: true,
+        is_omnimix: false,
         id: index,
         str_ascii: child_text(node_info, "ascii").to_string(),
         str_title: child_text(node_info, "title_name").to_string(),

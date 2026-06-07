@@ -13,11 +13,12 @@ use anyhow::{Context, Result};
 // write every valid song's fields (except is_valid) to a UTF-8 CSV with a BOM (so Excel reads CJK/symbols correctly)
 pub fn dump_music_csv(vec_music: &[MusicInfo], path_csv: &Path) -> Result<()> {
     let mut str_out = String::from("\u{FEFF}");                         // UTF-8 BOM for Excel
-    str_out.push_str("id,ascii,title,title_yomigana,artist,artist_yomigana,date,bpm,version\n");
+    str_out.push_str("id,omnimix,ascii,title,title_yomigana,artist,artist_yomigana,date,bpm,version\n");
     for info in vec_music.iter().filter(|m| m.is_valid) {
         str_out.push_str(&format!(
-            "{},{},{},{},{},{},{},{},{}\n",
+            "{},{},{},{},{},{},{},{},{},{}\n",
             info.id,
+            info.is_omnimix as u8,
             csv_field(&info.str_ascii),
             csv_field(&info.str_title),
             csv_field(&info.str_title_yomigana),
