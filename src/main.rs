@@ -5,6 +5,8 @@ use packer::{ensure_ffmpeg, package};
 use scan::{build_special_tasks, filter_existing, scan_music_dir};
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::thread;
 use anyhow::{Context, Result, bail};
 use clap::Parser;
 
@@ -28,10 +30,15 @@ struct Cli {
     /// force a full run, re-converting even songs already present in the output
     #[arg(short, long)]
     force: bool,
+
+    /// number of parallel workers [default: logical CPU count]
+    #[arg(short, long)]
+    jobs: Option<usize>,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    let jobs = cli.jobs.unwrap_or_else(|| thread::available_parallelism().map_or(1, |n| n.get())).max(1);
 
     // derive the two inputs from the contents dir, and resolve the output dir (cwd if -d omitted)
     let path_xml = cli.src.join("data").join("others").join("music_db.xml");
@@ -56,24 +63,38 @@ fn main() -> Result<()> {
         filter_existing(&mut vec_task);
     }
     let count_total = vec_task.len();
-    println!("converting {count_total} tracks ({} already present) -> {}", count_planned - count_total, path_out.display());
+    println!("converting {count_total} tracks with {jobs} workers ({} already present) -> {}", count_planned - count_total, path_out.display());
 
-    // convert each track; keep going on per-song failures (locked file, bad audio, ...) and report at the end
-    let mut count_ok: usize = 0;
-    let mut count_fail: usize = 0;
-    for (idx, task) in vec_task.iter().enumerate() {
-        match package(&task.info, &task.music_path, &task.jacket, &task.dst_path) {
-            Ok(()) => count_ok += 1,
-            Err(e) => {
-                count_fail += 1;
-                eprintln!("[{}/{count_total}] FAIL #{} {}: {e:#}", idx + 1, task.info.id, task.info.str_title);
-            }
+    /*
+    Fixed pool of `jobs` workers. Each worker atomically claims the next task index via fetch_add and processes it
+    until the list is exhausted, so the load self-balances regardless of per-song duration. Scoped threads borrow
+    vec_task and the counters by reference (no Arc); the atomics need no locking. Per-song failures are logged and
+    skipped, never aborting the batch.
+    */
+    let idx_next = AtomicUsize::new(0);                                 // next task index to hand out
+    let count_done = AtomicUsize::new(0);                               // finished (ok or fail), for progress + final count
+    let count_fail = AtomicUsize::new(0);
+    thread::scope(|scope| {
+        for _ in 0..jobs {
+            scope.spawn(|| loop {
+                let idx = idx_next.fetch_add(1, Ordering::Relaxed);
+                if idx >= count_total {
+                    break;
+                }
+                let task = &vec_task[idx];
+                if let Err(e) = package(&task.info, &task.music_path, &task.jacket, &task.dst_path) {
+                    count_fail.fetch_add(1, Ordering::Relaxed);
+                    eprintln!("FAIL #{} {}: {e:#}", task.info.id, task.info.str_title);
+                }
+                let count = count_done.fetch_add(1, Ordering::Relaxed) + 1;
+                if count % 100 == 0 || count == count_total {
+                    println!("  {count}/{count_total}");
+                }
+            });
         }
-        if (idx + 1) % 100 == 0 || idx + 1 == count_total {
-            println!("  {}/{count_total}", idx + 1);
-        }
-    }
+    });
 
-    println!("done: {count_ok} converted, {count_fail} failed");
+    let count_fail = count_fail.load(Ordering::Relaxed);
+    println!("done: {} converted, {count_fail} failed", count_total - count_fail);
     Ok(())
 }
