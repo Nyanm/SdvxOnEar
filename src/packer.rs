@@ -19,13 +19,31 @@ use lofty::tag::{Tag, TagType};
 // libopus target bitrate; the source is ~384kbps lossy WMA Pro, so 192k Opus is effectively transparent
 const OPUS_BITRATE: &str = "192k";
 
+// fail fast before a batch if ffmpeg can't be run, with a message pointing at the fix
+pub fn ensure_ffmpeg() -> Result<()> {
+    let path_ff = ffmpeg_path();
+    Command::new(&path_ff)
+        .arg("-version")
+        .output()
+        .with_context(|| format!("cannot run ffmpeg ({}); put ffmpeg.exe next to the program or on PATH", path_ff.display()))?;
+    Ok(())
+}
+
 // transcode the s3v to opus with ffmpeg, then attach Vorbis tags + the embedded cover
 pub fn package(info: &MusicInfo, music_path: &Path, jacket: &Path, dst_path: &Path) -> Result<()> {
     if let Some(path_parent) = dst_path.parent() {
         fs::create_dir_all(path_parent).with_context(|| format!("creating output dir {}", path_parent.display()))?;
     }
-    transcode_opus(music_path, dst_path)?;
-    write_tags(info, jacket, dst_path)?;
+
+    // do the work on a temp file in the same folder, then atomically rename into place, so an interrupted run never
+    // leaves a half-written `.opus` that the incremental scan would mistake for done. Temp keeps the `.opus` suffix so
+    // ffmpeg/lofty still detect the format by extension; rename replaces any existing dst (MoveFileEx on Windows).
+    let path_temp = dst_path.with_extension("part.opus");
+    if let Err(e) = transcode_opus(music_path, &path_temp).and_then(|()| write_tags(info, jacket, &path_temp)) {
+        let _ = fs::remove_file(&path_temp);                            // best-effort cleanup of the partial temp
+        return Err(e);
+    }
+    fs::rename(&path_temp, dst_path).with_context(|| format!("finalizing {}", dst_path.display()))?;
     Ok(())
 }
 

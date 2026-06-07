@@ -93,7 +93,6 @@ fn parse_music(index: u32, node_music: Node) -> MusicInfo {
         str_date: format_date(child_num(node_info, "distribution_date")),
         str_bpm: format_bpm(child_num(node_info, "bpm_max")),
         version: child_num(node_info, "version"),
-        inf_ver: child_num(node_info, "inf_ver"),
     }
 }
 

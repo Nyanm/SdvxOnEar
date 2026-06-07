@@ -7,26 +7,14 @@
 
 use crate::common::{MusicInfo, PackTask, SPECIAL_IDS, SPECIAL_TASKS, version_folder_name};
 
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use anyhow::Result;
 
-// --- incremental support: drop songs already present in the output ------------------------------------------------
+// --- incremental support: drop tasks whose output already exists --------------------------------------------------
 
-// collect ids already converted in the output folder, so a re-run only processes new songs.
-// TODO incremental: output files are named by title, so there is no id to recover yet; this returns an empty set
-// (i.e. full conversion) until an id tag or id-prefixed naming is introduced.
-pub fn scan_done_ids(_path_out: &Path) -> Result<HashSet<u32>> {
-    Ok(HashSet::new())
-}
-
-// mark every valid song whose id is already done as invalid, so the scan and special builder both skip it
-pub fn filter_done(vec_index: &mut [MusicInfo], set_done_id: &HashSet<u32>) {
-    for info in vec_index.iter_mut() {
-        if info.is_valid && set_done_id.contains(&info.id) {
-            info.is_valid = false;
-        }
-    }
+// each task's dst_path is known up front, so an incremental run just drops the ones already on disk: a cheap stat,
+// no tag reading. It is per-output, so the multi-audio specials each convert independently.
+pub fn filter_existing(vec_task: &mut Vec<PackTask>) {
+    vec_task.retain(|task| !task.dst_path.exists());
 }
 
 // --- general scan: one task per standard song ---------------------------------------------------------------------
@@ -99,9 +87,8 @@ pub fn build_special_tasks(path_music: &Path, path_out: &Path, vec_index: &[Musi
         };
 
         let mut info = info_db.clone();
-        if !sp.title.is_empty() {
-            info.str_title = sp.title.to_string();
-        }
+        info.str_title.push_str(sp.title_suffix);
+
         let path_dst = build_dst(path_out, info.version, &info.str_title);
 
         vec_task.push(PackTask {
