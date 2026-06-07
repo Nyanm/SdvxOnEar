@@ -40,13 +40,13 @@ pub struct SpecialTask {
 // folder name per game version; index == version number, slot 0 unused, slot 7 reserved for a future title
 pub const VERSION_FOLDER_NAMES: [&str; 8] = [
     "",
-    "01 BOOTH",
-    "02 II -infinite infection-",
-    "03 III GRAVITY WARS",
-    "04 IV HEAVENLY HAVEN",
-    "05 V VIVID WAVE",
-    "06 EXCEED GEAR",
-    "07 ∇",
+    "SDVX 01 BOOTH",
+    "SDVX 02 II -infinite infection-",
+    "SDVX 03 III GRAVITY WARS",
+    "SDVX 04 IV HEAVENLY HAVEN",
+    "SDVX 05 V VIVID WAVE",
+    "SDVX 06 EXCEED GEAR",
+    "SDVX 07 ∇",
 ];
 
 // album tag per game version (the clean full game name); index == version number, slot 0 unused
