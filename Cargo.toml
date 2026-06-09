@@ -1,6 +1,6 @@
 [package]
 name = "SdvxOnEar"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "MIT"
 
@@ -10,3 +10,7 @@ clap = { version = "4.6.1", features = ["derive"] }
 encoding_rs = "0.8"
 lofty = "0.24"
 roxmltree = "0.21"
+# vendored static libav (no system ffmpeg); FFMPEG_DIR is set in .cargo/config.toml.
+# only the libs we actually built are enabled (avcodec/avformat/avutil/swresample);
+# default features (avdevice/avfilter/swscale/postproc) are off since we did not build them.
+ffmpeg-the-third = { version = "4.1.0", default-features = false, features = ["codec", "format", "software-resampling", "static"] }

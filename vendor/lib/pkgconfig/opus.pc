@@ -1,0 +1,14 @@
+# Opus codec, statically built for SdvxOnEar vendoring (build-time only).
+# Internal paths use drive-letter/forward-slash form so MSVC cl/link accept them.
+prefix=C:/Users/Brewer/RustroverProjects/SdvxOnEar/vendor
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: Opus
+Description: Opus IETF audio codec
+URL: https://opus-codec.org/
+Version: 1.5.2
+Libs: -L${libdir} -lopus
+Libs.private:
+Cflags: -I${includedir}/opus
