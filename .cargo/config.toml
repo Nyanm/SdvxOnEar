@@ -1,0 +1,8 @@
+# FFMPEG_DIR points ffmpeg-sys-the-third at our committed vendor/ (include/ + lib/).
+# `relative = true` resolves it against this project root, so the repo stays portable.
+# Neither variable uses force=true, so an externally-set env var still wins.
+#
+# LIBCLANG_PATH must be set externally (system/user env var) so bindgen can find
+# libclang.dll — do NOT hardcode it here (machine-specific paths don't belong in git).
+[env]
+FFMPEG_DIR = { value = "vendor", relative = true }

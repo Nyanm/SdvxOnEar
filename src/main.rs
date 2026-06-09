@@ -2,7 +2,7 @@
 
 use common::MusicInfo;
 use music_db::load_index;
-use packer::{ensure_ffmpeg, package};
+use packer::package;
 use scan::{build_special_tasks, filter_existing, scan_music_dir};
 use tool::dump_music_csv;
 
@@ -18,6 +18,7 @@ mod music_db;
 mod packer;
 mod scan;
 mod tool;
+mod transcode;
 
 // command-line arguments
 #[derive(Parser)]
@@ -79,8 +80,6 @@ fn main() -> Result<()> {
     if !path_music.is_dir() {
         bail!("music folder not found: {} (is --src pointing at the SDVX 'contents' directory?)", path_music.display());
     }
-    ensure_ffmpeg()?;
-
     // plan tasks (standard scan + multi-audio specials), then unless --force drop those already converted
     let mut vec_task = scan_music_dir(&path_music, path_music_omni.as_deref(), &path_out, &vec_music);
     vec_task.extend(build_special_tasks(&path_music, &path_out, &vec_music));

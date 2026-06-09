@@ -1,6 +1,9 @@
 /.ai
 /.claude
 /.idea
+/.ffmpeg
+/.document
+/.opus
 /target
 /ffmpeg.exe
 /music_db.csv
