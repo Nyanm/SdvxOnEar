@@ -3,7 +3,7 @@
 ## 简介
 
 SDVX on Ear是一款用于将SDVX游戏文件中的歌曲提取为组织好的音乐文件仓库的程序，同时会为每一首歌加入对应的元信息与封面。
-程序会尝试读取你的`contents/`文件夹，将游戏文件中的歌曲（包括omnimix文件夹）从WMA转换为Opus格式（SDVX原生的WMA格式对于元信息标签的支持很差），再依据版本放入对应的文件夹中。
+程序会尝试读取你的`contents/`文件夹，将游戏文件中的歌曲（包括omnimix文件夹）从游戏原生格式（`.s3v` 的 WMA Pro，以及早期 omni 的 `.2dx`）转换为Opus格式（SDVX原生格式对元信息标签的支持很差），再依据版本放入对应的文件夹中。
 在游戏更新到新版本后，可以直接再次运行程序，程序将增量转换新增的歌曲。
 
 每首歌附加的元信息包括：
@@ -27,7 +27,7 @@ SDVX on Ear是一款用于将SDVX游戏文件中的歌曲提取为组织好的�
 
 **推荐** 可以直接下载release版本。
 
-或使用`cargo build -r`进行编译。程序静态链接了FFmpeg部分代码及Libopus组件，构建时依赖LLVM + VS 2022 MSVC 工具链。相关lib随vendor/已提交进git，不需要重新编译。
+或使用`cargo build -r`进行编译。音频转换委托给同级仓库 [iidxOnKnitting](https://github.com/Nyanm/iidxOnKnitting)（请检出到 SdvxOnEar 的**同级目录**），由它把 `.s3v`/`.2dx` 解码并重编为 Opus；裁剪版 FFmpeg + libopus 的预编译静态库随 iidxOnKnitting 的 `vendor/` 提交，无需重新编译 FFmpeg。首次从源码构建依赖 LLVM(libclang) + VS 2022 MSVC 工具链。
 
 程序的参数如下：
 
@@ -44,15 +44,6 @@ SDVX on Ear是一款用于将SDVX游戏文件中的歌曲提取为组织好的�
 
 `SdvxOnEar -s C:\Game\SDVX\contents -d C:\Game\MUSIC -j 8`：读取电脑中的SDVX/contents文件夹中的游戏数据，输出到MUSIC文件夹中，开启8个并发进程。
 
-## 第三方代码声明
-
-| 组件 | 来源 | 许可证 | 在本项目中的位置 |
-|------|------|--------|-----------------|
-| FFmpeg (libavcodec / libavformat / libavutil / libswresample) | <https://ffmpeg.org/> | LGPL 2.1+ | `vendor/include/libav*`（头文件）<br>`vendor/lib/av{codec,format,util}.lib` `swresample.lib`（预编译静态库）<br>`document/vendor-ffmpeg-libopus.md`（构建脚本） |
-| libopus | <https://opus-codec.org/> | 3-clause BSD | `vendor/include/opus/`（头文件）<br>`vendor/lib/opus.lib`（预编译静态库） |
-
-以上静态库均为裁剪构建（仅保留本工具所需的解码器/编码器/复用器），且未开启任何 GPL 组件。用户可依据各组件原许可证获取源码、自行重编并替换 vendor/ 中的预编译库。本项目的 MIT 许可证不覆盖 vendor/ 中 ffmpeg 头文件。
-
 ## 已知问题
 
 1. 一些早期的omni曲目的音频格式依然是`.2dx`，这些歌曲的音频转换还未实现，现在会跳过。
@@ -66,7 +57,7 @@ SDVX on Ear是一款用于将SDVX游戏文件中的歌曲提取为组织好的�
 ## Overview
 
 SDVX on Ear extracts the songs out of the SDVX game files into a neatly organized music library, attaching the matching metadata and cover art to every track.
-It reads your `contents/` folder, converts the songs in the game files (including the omnimix folder) from WMA to Opus (SDVX's native WMA has poor support for metadata tags), and sorts them into per-version folders.
+It reads your `contents/` folder, converts the songs in the game files (including the omnimix folder) from their native format (`.s3v` WMA Pro, plus the early omni `.2dx`) to Opus (SDVX's native format has poor support for metadata tags), and sorts them into per-version folders.
 After the game updates to a new version, just run the program again and it will incrementally convert the newly added songs.
 
 The metadata attached to each song:
@@ -90,7 +81,7 @@ This program contains no information copyrighted © Konami Arcade Games.
 
 **Recommended** — download a release build.
 
-Or compile it yourself with `cargo build -r`. The program statically links a trimmed subset of FFmpeg (libavcodec / libavformat / libavutil / libswresample) and libopus, so a build requires LLVM + the VS 2022 MSVC toolchain. The prebuilt static libraries are committed under `vendor/`; rebuilding FFmpeg from source is not necessary.
+Or compile it yourself with `cargo build -r`. Audio conversion is delegated to the sibling [iidxOnKnitting](https://github.com/Nyanm/iidxOnKnitting) repo (check it out **next to** SdvxOnEar), which decodes the `.s3v`/`.2dx` and re-encodes Opus; its trimmed FFmpeg + libopus prebuilt static libraries are committed under iidxOnKnitting's `vendor/`, so rebuilding FFmpeg is not necessary. A first source build requires LLVM (libclang) + the VS 2022 MSVC toolchain.
 
 The program's arguments:
 
@@ -106,15 +97,6 @@ The program's arguments:
 Example:
 
 `SdvxOnEar -s C:\Game\SDVX\contents -d C:\Game\MUSIC -j 8`: read the game data from the SDVX/contents folder on your computer, output to the MUSIC folder, and run with 8 concurrent workers.
-
-## Third-party code
-
-| Component | Source | License | Location in this project |
-|-----------|--------|---------|--------------------------|
-| FFmpeg (libavcodec / libavformat / libavutil / libswresample) | <https://ffmpeg.org/> | LGPL 2.1+ | `vendor/include/libav*` (headers)<br>`vendor/lib/av{codec,format,util}.lib` `swresample.lib` (prebuilt static libraries)<br>`document/vendor-ffmpeg-libopus.md` (build scripts) |
-| libopus | <https://opus-codec.org/> | 3-clause BSD | `vendor/include/opus/` (headers)<br>`vendor/lib/opus.lib` (prebuilt static library) |
-
-The static libraries above are trimmed builds (only the decoders / encoders / muxers this tool needs), and **no GPL components were enabled**. Users may obtain the source, rebuild, and replace the prebuilt libraries under `vendor/` per the original licenses — instructions are in `document/vendor-ffmpeg-libopus.md`. This project's MIT license does not cover the FFmpeg headers in `vendor/`.
 
 ## Known issues
 

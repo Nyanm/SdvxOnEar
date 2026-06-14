@@ -1,8 +1,10 @@
-# FFMPEG_DIR points ffmpeg-sys-the-third at our committed vendor/ (include/ + lib/).
-# `relative = true` resolves it against this project root, so the repo stays portable.
-# Neither variable uses force=true, so an externally-set env var still wins.
+# FFMPEG_DIR points ffmpeg-sys-the-third (pulled in transitively via the iidx_on_knitting dependency)
+# at the vendored trimmed FFmpeg in the sibling iidxOnKnitting repo. Cargo only reads the TOP package's
+# .cargo/config.toml, NOT a dependency's, so SdvxOnEar must set this itself even though iidxOnKnitting
+# has the same line. `relative = true` resolves against this project root, keeping the repo portable;
+# no force= so an external env var still wins.
 #
-# LIBCLANG_PATH must be set externally (system/user env var) so bindgen can find
-# libclang.dll — do NOT hardcode it here (machine-specific paths don't belong in git).
+# First clean build also needs LLVM\bin on PATH (or LIBCLANG_PATH set) so bindgen finds libclang.dll.
+# Incremental builds need nothing extra (bindings are cached, rustc finds link.exe itself).
 [env]
-FFMPEG_DIR = { value = "vendor", relative = true }
+FFMPEG_DIR = { value = "../iidxOnKnitting/vendor", relative = true }

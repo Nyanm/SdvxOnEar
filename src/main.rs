@@ -18,7 +18,6 @@ mod music_db;
 mod packer;
 mod scan;
 mod tool;
-mod transcode;
 
 // command-line arguments
 #[derive(Parser)]
@@ -70,7 +69,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    // resolve the conversion inputs/output (cwd output if -d omitted), then verify ffmpeg is runnable
+    // resolve the conversion inputs/output (cwd output if -d omitted)
     let path_music = cli.src.join("data").join("music");
     let path_music_omni = path_omni.as_ref().map(|o| o.join("music"));  // omnimix songs' audio root, if patched
     let path_out = match cli.dst {

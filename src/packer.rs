@@ -1,22 +1,25 @@
-//! Package one task into a tagged Opus file: FFI transcode (WMA -> Opus) -> lofty (Vorbis tags + cover).
+//! Package one task into a tagged Opus file: convert the source audio to Ogg/Opus via iidx_on_knitting,
+//! then attach the Vorbis tags + cover with lofty.
 //!
-//! `.s3v` is an ASF container holding lossy WMA Pro audio, which has no pure-Rust decoder, so the vendored static
-//! libav + libopus (linked via ffmpeg-the-third) transcodes it to Opus. Source is already lossy, so Opus (not FLAC)
-//! is the target. lofty then writes the Vorbis comments and embeds the cover art into the resulting `.opus` file.
+//! The source is a pre-mixed lossy file (`.s3v` = ASF/WMA Pro, or an omnimix `.2dx`); `iidx_on_knitting::convert_song`
+//! decodes it and re-encodes Ogg/Opus (it owns the vendored libav + libopus, so SdvxOnEar links no ffmpeg directly).
+//! Source is already lossy, so Opus (not FLAC) is the target. lofty then writes the Vorbis comments and embeds the
+//! cover art into the resulting `.opus` file.
 
 use crate::common::{ALBUM_ARTIST, MusicInfo, version_album_name};
-use crate::transcode;
 
 use std::fs;
 use std::path::Path;
 use anyhow::{Context, Result};
+
+use iidx_on_knitting::convert_song;
 
 use lofty::config::WriteOptions;
 use lofty::picture::{MimeType, Picture, PictureType};
 use lofty::prelude::*;
 use lofty::tag::{Tag, TagType};
 
-// transcode the s3v to opus via vendored libav, then attach Vorbis tags + the embedded cover
+// convert the source audio to opus via iidx_on_knitting, then attach Vorbis tags + the embedded cover
 pub fn package(info: &MusicInfo, music_path: &Path, jacket: &Path, dst_path: &Path) -> Result<()> {
     if let Some(path_parent) = dst_path.parent() {
         fs::create_dir_all(path_parent).with_context(|| format!("creating output dir {}", path_parent.display()))?;
@@ -24,9 +27,10 @@ pub fn package(info: &MusicInfo, music_path: &Path, jacket: &Path, dst_path: &Pa
 
     // do the work on a temp file in the same folder, then atomically rename into place, so an interrupted run never
     // leaves a half-written `.opus` that the incremental scan would mistake for done. Temp keeps the `.opus` suffix so
-    // ffmpeg/lofty still detect the format by extension; rename replaces any existing dst (MoveFileEx on Windows).
+    // lofty still detects the format by extension; rename replaces any existing dst (MoveFileEx on Windows).
     let path_temp = dst_path.with_extension("part.opus");
-    if let Err(e) = transcode::transcode_to_opus(music_path, &path_temp)
+    if let Err(e) = convert_song(music_path, &path_temp)
+        .map_err(anyhow::Error::new)                                    // RenderError -> anyhow
         .and_then(|()| write_tags(info, jacket, &path_temp))
     {
         let _ = fs::remove_file(&path_temp);                            // best-effort cleanup of the partial temp
