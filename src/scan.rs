@@ -44,17 +44,13 @@ pub fn scan_music_dir(path_music: &Path, path_music_omni: Option<&Path>, path_ou
 fn resolve_song(info: &MusicInfo, path_dir: &Path, str_prefix: &str, path_out: &Path) -> Option<PackTask> {
     let str_id4 = str_prefix.split('_').next().unwrap_or("");          // "0927", the jacket file prefix
 
-    let path_base = path_dir.join(format!("{str_prefix}.s3v"));
+    let mut path_base = path_dir.join(format!("{str_prefix}.s3v"));
     if !path_base.exists() {
-        // a sibling `.2dx` means the audio exists but in the omnimix archive format we don't decode; otherwise it is
-        // genuinely absent (e.g. a jacket-only delisted/event row)
-        let str_reason = if path_dir.join(format!("{str_prefix}.2dx")).exists() {
-            "audio not found, unsupported format (.2dx)"
-        } else {
-            "audio file not found"
-        };
-        eprintln!("[skip] #{} {}: {str_reason}", info.id, info.str_title);
-        return None;
+        path_base = path_dir.join(format!("{str_prefix}.2dx"));  // fallback to .2dx file check
+        if !path_base.exists() {
+            eprintln!("[skip] #{} {}: audio file not found", info.id, info.str_title);
+            return None;
+        }
     }
 
     // jacket of the highest difficulty available: MAXIMUM -> 4th -> EXHAUST -> ADVANCED -> base

@@ -25,11 +25,20 @@ SDVX on Ear是一款用于将SDVX游戏文件中的歌曲提取为组织好的�
 
 ## 使用
 
-**推荐** 可以直接下载release版本。
+### 编译
 
-或使用`cargo build -r`进行编译。音频转换委托给同级仓库 [iidxOnKnitting](https://github.com/Nyanm/iidxOnKnitting)（请检出到 SdvxOnEar 的**同级目录**），由它把 `.s3v`/`.2dx` 解码并重编为 Opus；裁剪版 FFmpeg + libopus 的预编译静态库随 iidxOnKnitting 的 `vendor/` 提交，无需重新编译 FFmpeg。首次从源码构建依赖 LLVM(libclang) + VS 2022 MSVC 工具链。
+本程序通过 path 依赖嵌入 [IIDX on Knitting](https://github.com/Nyanm/iidxOnKnitting)。请将两个仓库克隆为同级目录：
 
-程序的参数如下：
+```
+RustroverProjects/
+├─ SdvxOnEar/
+└─ iidxOnKnitting/
+```
+
+随后 `cargo build -r` 即可（`FFMPEG_DIR` 已在 `.cargo/config.toml` 中配好，指向 `../iidxOnKnitting/vendor`；若放在别处需相应修改）。
+首次 clean 构建依赖 LLVM + VS 2022 MSVC 工具链（这是 on knitting 静态链接裁剪版 FFmpeg 所需，`vendor/` 内已带预编译二进制，无需自行编译 FFmpeg），增量构建不需要。构建出的可执行文件已静态链接全部依赖，**运行时无需系统 FFmpeg 或任何外部库**。
+
+### 运行
 
 `SdvxOnEar -s <contents> [-d 输出] [-f] [-j N]`
 
@@ -46,9 +55,8 @@ SDVX on Ear是一款用于将SDVX游戏文件中的歌曲提取为组织好的�
 
 ## 已知问题
 
-1. 一些早期的omni曲目的音频格式依然是`.2dx`，这些歌曲的音频转换还未实现，现在会跳过。
-2. 由于BEMANI所使用的神奇SHIFT-JIS编码中使用了部分私有字形，导致EMOJI和带注音的拉丁字母在转换为UTF-8时会变成生僻汉字。这一点已经于`src/common.rs`进行了手动修改，新歌出现类似问题仍需手动补充`FIXUP_RULES`表。
-3. 有多音源的歌曲（比如極圏），需要单独进行处理。新歌出现类似问题仍需手动补充`SPECIAL_TASKS`表。
+1. 由于BEMANI所使用的神奇SHIFT-JIS编码中使用了部分私有字形，导致EMOJI和带注音的拉丁字母在转换为UTF-8时会变成生僻汉字。这一点已经于`src/common.rs`进行了手动修改，新歌出现类似问题仍需手动补充`FIXUP_RULES`表。
+2. 有多音源的歌曲（比如極圏），需要单独进行处理。新歌出现类似问题仍需手动补充`SPECIAL_TASKS`表。
 
 ---
 
@@ -79,11 +87,21 @@ This program contains no information copyrighted © Konami Arcade Games.
 
 ## Usage
 
-**Recommended** — download a release build.
+Downloading a release build is the recommended way to use this program.
 
-Or compile it yourself with `cargo build -r`. Audio conversion is delegated to the sibling [iidxOnKnitting](https://github.com/Nyanm/iidxOnKnitting) repo (check it out **next to** SdvxOnEar), which decodes the `.s3v`/`.2dx` and re-encodes Opus; its trimmed FFmpeg + libopus prebuilt static libraries are committed under iidxOnKnitting's `vendor/`, so rebuilding FFmpeg is not necessary. A first source build requires LLVM (libclang) + the VS 2022 MSVC toolchain.
+### Build
 
-The program's arguments:
+This program embeds [IIDX on Knitting](https://github.com/Nyanm/iidxOnKnitting) as a path dependency. Clone the two repositories as sibling directories:
+
+```
+RustroverProjects/
+├─ SdvxOnEar/
+└─ iidxOnKnitting/
+```
+
+Then `cargo build -r` (`FFMPEG_DIR` is already set in `.cargo/config.toml` to point at `../iidxOnKnitting/vendor`; adjust it if you put the repo elsewhere). A first clean build requires the LLVM + VS 2022 MSVC toolchains (needed by on knitting's statically-linked, trimmed FFmpeg; the prebuilt binaries ship in `vendor/`, so there is no need to compile FFmpeg yourself); incremental builds do not. The resulting executable statically links every dependency, so **no system FFmpeg or any external library is needed at runtime**.
+
+### Run
 
 `SdvxOnEar -s <contents> [-d output] [-f] [-j N]`
 
@@ -100,6 +118,5 @@ Example:
 
 ## Known issues
 
-1. Some early omni tracks still use the `.2dx` audio format; converting these is not yet implemented, so they are skipped for now.
-2. Because the quirky SHIFT-JIS encoding BEMANI uses relies on some private-use glyphs, emoji and accented Latin letters turn into obscure kanji when decoded to UTF-8. This has been corrected by hand in `src/common.rs`; new songs hitting the same issue still need manual additions to the `FIXUP_RULES` table.
-3. Songs with multiple audio sources (such as 極圏) need special handling. New songs hitting the same issue still need manual additions to the `SPECIAL_TASKS` table.
+1. Because the quirky SHIFT-JIS encoding BEMANI uses relies on some private-use glyphs, emoji and accented Latin letters turn into obscure kanji when decoded to UTF-8. This has been corrected by hand in `src/common.rs`; new songs hitting the same issue still need manual additions to the `FIXUP_RULES` table.
+2. Songs with multiple audio sources (such as 極圏) need special handling. New songs hitting the same issue still need manual additions to the `SPECIAL_TASKS` table.

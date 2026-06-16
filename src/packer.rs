@@ -10,9 +10,9 @@ use crate::common::{ALBUM_ARTIST, MusicInfo, version_album_name};
 
 use std::fs;
 use std::path::Path;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 
-use iidx_on_knitting::convert_song;
+use iidx_on_knitting::{convert_song, convert_packed_song, RenderError};
 
 use lofty::config::WriteOptions;
 use lofty::picture::{MimeType, Picture, PictureType};
@@ -29,13 +29,23 @@ pub fn package(info: &MusicInfo, music_path: &Path, jacket: &Path, dst_path: &Pa
     // leaves a half-written `.opus` that the incremental scan would mistake for done. Temp keeps the `.opus` suffix so
     // lofty still detects the format by extension; rename replaces any existing dst (MoveFileEx on Windows).
     let path_temp = dst_path.with_extension("part.opus");
-    if let Err(e) = convert_song(music_path, &path_temp)
-        .map_err(anyhow::Error::new)                                    // RenderError -> anyhow
-        .and_then(|()| write_tags(info, jacket, &path_temp))
-    {
-        let _ = fs::remove_file(&path_temp);                            // best-effort cleanup of the partial temp
-        return Err(e);
+    match convert_song(music_path, &path_temp) {
+        Ok(()) => {}
+        Err(RenderError::NotKeysound) => {
+            let _ = fs::remove_file(&path_temp);
+            eprintln!("How did you get here!?");
+            return Err(anyhow!("unexpected error in sdvxOnEar: RenderError::NotKeysound"))
+        }
+        Err(RenderError::NotSingleAudio) => {
+            convert_packed_song(music_path, &path_temp)?;
+        }
+        Err(RenderError::Failed(e)) => {
+            let _ = fs::remove_file(&path_temp);  // best-effort cleanup of the partial temp
+            return Err(e);
+        }
     }
+
+    write_tags(info, jacket, &path_temp)?;
     fs::rename(&path_temp, dst_path).with_context(|| format!("finalizing {}", dst_path.display()))?;
     Ok(())
 }
