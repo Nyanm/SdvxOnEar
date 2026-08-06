@@ -1,6 +1,6 @@
 [package]
 name = "SdvxOnEar"
-version = "0.4.0"
+version = "0.3.1"
 edition = "2024"
 license = "MIT"
 
@@ -10,8 +10,10 @@ clap = { version = "4.6.1", features = ["derive"] }
 encoding_rs = "0.8"
 lofty = "0.24"
 roxmltree = "0.21"
-# audio conversion is delegated to the sibling iidxOnKnitting crate: its convert_song() decodes a
-# pre-mixed source (SDVX .s3v WMA Pro, or .2dx) and encodes Ogg/Opus. It owns the vendored static
-# libav + libopus, so SdvxOnEar links no ffmpeg of its own — see .cargo/config.toml for FFMPEG_DIR.
+# audio conversion is delegated to the sibling iidxOnKnitting crate. That crate covers three games; SDVX
+# ships finished files, so the only entry point used here is its one-call-per-game surface's run_sdvx(),
+# which decodes a pre-mixed source (.s3v WMA Pro, or a .2dx in either container shape) and re-encodes
+# Ogg/Opus. It owns the vendored static libav + libopus, so SdvxOnEar links no ffmpeg of its own — see
+# .cargo/config.toml for FFMPEG_DIR.
 # package is "iidxOnKnitting" (lib name "iidx_on_knitting"); alias the dep key so `use iidx_on_knitting` resolves.
 iidx_on_knitting = { path = "../iidxOnKnitting", package = "iidxOnKnitting" }

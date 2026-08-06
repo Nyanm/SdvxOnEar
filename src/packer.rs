@@ -1,8 +1,10 @@
 //! Package one task into a tagged Opus file: convert the source audio to Ogg/Opus via iidx_on_knitting,
 //! then attach the Vorbis tags + cover with lofty.
 //!
-//! The source is a pre-mixed lossy file (`.s3v` = ASF/WMA Pro, or an omnimix `.2dx`); `iidx_on_knitting::convert_song`
-//! decodes it and re-encodes Ogg/Opus (it owns the vendored libav + libopus, so SdvxOnEar links no ffmpeg directly).
+//! The source is a pre-mixed lossy file (`.s3v` = ASF/WMA Pro, or an omnimix `.2dx`), so of iidx_on_knitting's surface
+//! only `run_sdvx` is used: SDVX ships finished files, so there are no keysounds to reconstruct, and which container a
+//! given file is (bare audio vs 2DX9) is that crate's call to make from the bytes, not ours. It decodes the source and
+//! re-encodes Ogg/Opus (it owns the vendored libav + libopus, so SdvxOnEar links no ffmpeg directly).
 //! Source is already lossy, so Opus (not FLAC) is the target. lofty then writes the Vorbis comments and embeds the
 //! cover art into the resulting `.opus` file.
 
@@ -10,16 +12,16 @@ use crate::common::{ALBUM_ARTIST, MusicInfo, version_album_name};
 
 use std::fs;
 use std::path::Path;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 
-use iidx_on_knitting::{convert_song, convert_packed_song, RenderError};
+use iidx_on_knitting::run_sdvx;
 
 use lofty::config::WriteOptions;
 use lofty::picture::{MimeType, Picture, PictureType};
 use lofty::prelude::*;
 use lofty::tag::{Tag, TagType};
 
-// convert the source audio to opus via iidx_on_knitting, then attach Vorbis tags + the embedded cover
+// convert the source audio to opus via iidx_on_knitting's run_sdvx, then attach Vorbis tags + the embedded cover
 pub fn package(info: &MusicInfo, music_path: &Path, jacket: &Path, dst_path: &Path) -> Result<()> {
     if let Some(path_parent) = dst_path.parent() {
         fs::create_dir_all(path_parent).with_context(|| format!("creating output dir {}", path_parent.display()))?;
@@ -27,25 +29,13 @@ pub fn package(info: &MusicInfo, music_path: &Path, jacket: &Path, dst_path: &Pa
 
     // do the work on a temp file in the same folder, then atomically rename into place, so an interrupted run never
     // leaves a half-written `.opus` that the incremental scan would mistake for done. Temp keeps the `.opus` suffix so
-    // lofty still detects the format by extension; rename replaces any existing dst (MoveFileEx on Windows).
+    // lofty still detects the format by extension; rename replaces any existing dst (MoveFileEx on Windows). A single
+    // cleanup site removes the partial temp on any failure (convert or tag-write).
     let path_temp = dst_path.with_extension("part.opus");
-    match convert_song(music_path, &path_temp) {
-        Ok(()) => {}
-        Err(RenderError::NotKeysound) => {
-            let _ = fs::remove_file(&path_temp);
-            eprintln!("How did you get here!?");
-            return Err(anyhow!("unexpected error in sdvxOnEar: RenderError::NotKeysound"))
-        }
-        Err(RenderError::NotSingleAudio) => {
-            convert_packed_song(music_path, &path_temp)?;
-        }
-        Err(RenderError::Failed(e)) => {
-            let _ = fs::remove_file(&path_temp);  // best-effort cleanup of the partial temp
-            return Err(e);
-        }
+    if let Err(e) = run_sdvx(music_path, &path_temp).and_then(|()| write_tags(info, jacket, &path_temp)) {
+        let _ = fs::remove_file(&path_temp);                            // best-effort cleanup of the partial temp
+        return Err(e);
     }
-
-    write_tags(info, jacket, &path_temp)?;
     fs::rename(&path_temp, dst_path).with_context(|| format!("finalizing {}", dst_path.display()))?;
     Ok(())
 }
